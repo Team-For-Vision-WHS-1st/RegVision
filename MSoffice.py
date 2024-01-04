@@ -1,3 +1,4 @@
+# 미완성 코드입니다 
 from __future__ import print_function
 from __future__ import unicode_literals
 from Registry import Registry
