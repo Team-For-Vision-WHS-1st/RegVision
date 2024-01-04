@@ -1,5 +1,4 @@
-#toolbox에 test라는 버튼 형식으로 구현 했는데 텍스트 형식으로 수정해 보겠습니다.
-#버튼을 누르면 새 창이 나와요 페이지 변환을 하고 싶었는데 그건 gui 수정하면서 해봐야 할 것 같아요.
+#혁람님 GUI 바탕으로 제가 구현한 module import + class 및 함수 몇개 추가해서 붙였습니다 
 
 from __future__ import print_function
 from __future__ import unicode_literals
