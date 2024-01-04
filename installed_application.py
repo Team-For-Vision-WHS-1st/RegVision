@@ -1,16 +1,10 @@
-from __future__ import print_function
-from __future__ import unicode_literals
-from Registry import Registry
+# installed_applications.py
 
-import time
-import os
-import re
-import sys
+from Registry import Registry
 import pandas as pd
 
-def installed_applications(soft_reg):
+def get_installed_applications(soft_reg):
     registry = Registry.Registry(soft_reg)
-    print(registry.root().subkeys())
     results = []  # 응용프로그램 정보를 담을 리스트
 
     temp_list = []
@@ -21,7 +15,6 @@ def installed_applications(soft_reg):
     for temp in temp_list:
         k = registry.open("Microsoft\\Windows\\CurrentVersion\\Uninstall\\%s" % temp)
         application_dict = {}
-        print(k.name())
         for v in k.values():
             if v.name() == "DisplayName" or v.name() == "displayname":
                 application_dict['Name'] = v.value()
@@ -41,15 +34,11 @@ def installed_applications(soft_reg):
             application_dict['Name'] = k.name()
         results.append(application_dict)
 
-    # 딕셔너리의 리스트를 pandas DataFrame으로 변환
-    df = pd.DataFrame(results)
-
-    # DataFrame을 CSV 파일로 저장
-    df.to_csv('installedApplication_output.csv', index=False)
-
-    print("[+] 결과가 installedApplication_output.csv로 저장되었습니다.")
+    return results
 
 if __name__ == "__main__":
-    soft_reg = '.\\Registry_Folder\\SOFTWARE' # SOFTWARE 경로 지정 
-    print("[+] SOFTWARE Hive : %s" % soft_reg)
-    installed_applications(soft_reg)
+    soft_reg = '.\\Registry_Folder\\SOFTWARE'
+    results = get_installed_applications(soft_reg)
+    df = pd.DataFrame(results)
+    df.to_csv('installedApplication_output.csv', index=False)
+    print("[+] 결과가 installedApplication_output.csv로 저장되었습니다.")
