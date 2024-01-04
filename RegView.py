@@ -651,7 +651,9 @@ class InstalledApplicationsFrame(wx.Frame):
         for row in range(df.shape[0]):
             for col in range(df.shape[1]):
                 grid.SetCellValue(row, col, str(df.iloc[row,col]))
-
+        # 열 너비 자동 조정 
+        grid.AutoSizeColumns()
+        
         # 레이아웃 설정 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(grid, 1, wx.EXPAND)
@@ -676,6 +678,9 @@ class AmcacheAnalyzerFrame(wx.Frame):
         for row, result in enumerate(results):
             for col, value in enumerate(result.values()):
                 grid.SetCellValue(row, col, str(value))
+        
+        # 열 너비 자동 조정 
+        grid.AutoSizeColumns()
 
         # 레이아웃 설정
         sizer = wx.BoxSizer(wx.VERTICAL)
