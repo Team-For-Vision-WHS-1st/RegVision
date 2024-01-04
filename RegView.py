@@ -1,24 +1,94 @@
-#혁람님 GUI 바탕으로 제가 구현한 module import + class 및 함수 몇개 추가해서 붙였습니다 
+# main에 올려져있는 RegView.py에 제 기능코드들 연결시킨 코드 몇줄 추가한 파일입니다
+# 혹시 몰라서 바로 안 붙이고 여기다 먼저 올립니다 
 
 from __future__ import print_function
 from __future__ import unicode_literals
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
 import sys
 import os
 import wx
 from Registry import Registry
+import csv
+
 # 추가된 module
 import pandas as pd
 import wx.grid as girdlib
 from installed_application import get_installed_applications # 설치응용프로그램.py import 
 from amcache_analyzer import analyze_amcache #amcache 모듈 import
 
-# 각 메뉴 및 탭에 대한 ID 정의
+def _expand_into(dest, src):
+    vbox = wx.BoxSizer(wx.VERTICAL)
+    vbox.Add(src, 1, wx.EXPAND | wx.ALL)
+    dest.SetSizer(vbox)
+
+
 ID_FILE_OPEN = wx.NewIdRef()
 ID_FILE_SESSION_SAVE = wx.NewIdRef()
 ID_FILE_SESSION_OPEN = wx.NewIdRef()
 ID_TAB_CLOSE = wx.NewIdRef()
 ID_FILE_EXIT = wx.NewIdRef()
 ID_HELP_ABOUT = wx.NewIdRef()
+
+
+# CSVExporter 클래스 정의
+class CSVExporter:
+    @staticmethod
+    def export(filename, data):
+        with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['Filename', 'Selected Path', 'Value Name', 'Value Type', 'Value Data']
+            csv_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            csv_writer.writeheader()
+            csv_writer.writerows(data)
+
+
+# PDFExporter 클래스 정의
+class PDFExporter:
+    @staticmethod
+    def export(filename, data):
+        c = canvas.Canvas(filename, pagesize=letter)
+        y_position = 750
+        line_height = 14
+        
+        for item in data:
+            c.drawString(72, y_position, f"Filename: {item['Filename']}")
+            y_position -= line_height
+            c.drawString(72, y_position, f"Selected Path: {item['Selected Path']}")
+            y_position -= line_height
+            c.drawString(72, y_position, f"Value Name: {item['Value Name']}")
+            y_position -= line_height
+            c.drawString(72, y_position, f"Value Type: {item['Value Type']}")
+            y_position -= line_height
+            c.drawString(72, y_position, f"Value Data: {item['Value Data']}")
+            y_position -= line_height * 2
+
+            if y_position < 72:
+                c.showPage()
+                y_position = 750
+
+        c.save()
+        print(f"PDF file has been created: {filename}")
+
+        # 데이터 반환
+        return data
+
+
+class Extractor:
+    @staticmethod
+    def export_to_markdown(filename, data):
+        with open(filename, 'w', encoding='utf-8') as md_file:
+            md_file.write("# Extracted Registry Data\n\n")
+
+            for item in data:
+                md_file.write(f"## {item['Filename']}\n\n")
+                md_file.write(f"**Selected Path:** {item['Selected Path']}\n\n")
+                md_file.write(f"**Value Name:** {item['Value Name']}\n\n")
+                md_file.write(f"**Value Type:** {item['Value Type']}\n\n")
+                md_file.write(f"**Value Data:** {item['Value Data']}\n\n")
+                md_file.write("---\n\n")
 
 
 def nop(*args, **kwargs):
@@ -225,11 +295,9 @@ class RegistryFileView(wx.Panel):
         self.text2 = wx.StaticText(panel_2, label="ToolBox", pos=(10, 10))
         test_button = wx.Button(panel_2, label="Test", pos=(10, 40))
         test_button.Bind(wx.EVT_BUTTON, self.OnTestButtonClick)
-
         # 설치된 응용프로그램 버튼 추가 
         installed_apps_button = wx.Button(panel_2, label="설치된 응용프로그램", pos=(10,80))
         installed_apps_button.Bind(wx.EVT_BUTTON, self.OnInstalledAppsButtonClick)
-
         # amcache.hve 버튼 추가 
         amcache_analyzer_button = wx.Button(panel_2, label="Amcache.hve", pos=(10,120))
         amcache_analyzer_button.Bind(wx.EVT_BUTTON, self.OnAmcacheAnalyzerButtonClick)
@@ -261,6 +329,20 @@ class RegistryFileView(wx.Panel):
         self._tree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnKeySelected)
 
         self._tree.add_registry(registry)
+
+    def extract_data(self):
+        data = []
+        for i in range(self._value_list_view.GetItemCount()):
+            value_name = self._value_list_view.GetItemText(i)
+            value = self._value_list_view.get_value(value_name)
+            data.append({
+                'Filename': self._filename,
+                'Selected Path': self.selected_path(),
+                'Value Name': value_name,
+                'Value Type': value.value_type_str(),
+                'Value Data': str(value.value())
+            })
+        return data
 
     def OnTestButtonClick(self, event):
         # 테스트 버튼 클릭 시 호출되는 함수
@@ -305,8 +387,8 @@ class RegistryFileView(wx.Panel):
 
     def select_path(self, path):
         self._tree.select_path(path)
-
     #설치된 응용프로그램 버튼 클릭시 호출되는 함수 
+        
     def OnInstalledAppsButtonClick(self, event):
         soft_reg = ".\\Registry_folder\\SOFTWARE"
         results = get_installed_applications(soft_reg)
@@ -322,6 +404,10 @@ class RegistryFileView(wx.Panel):
         #pop-up reulsts
         amcache_analyze_frame = AmcacheAnalyzerFrame(self, results)
         amcache_analyze_frame.Show()
+    def export_to_markdown(self, markdown_filename='extracted_data.md'):
+        data = self.extract_data()  # 데이터 추출
+        Extractor.export_to_markdown(markdown_filename, data)
+        wx.MessageBox(f"Data extracted and saved to '{markdown_filename}'", "Extraction Complete")
 
 class TestFrame(wx.Frame):
     def __init__(self, parent):
@@ -338,7 +424,7 @@ class RegistryFileViewer(wx.Frame):
         self.CreateStatusBar()
 
         menu_bar = wx.MenuBar()
-                # 파일 메뉴 및 탭 메뉴에 대한 정의
+        # 파일 메뉴 및 탭 메뉴에 대한 정의
         file_menu = wx.Menu()
         _open = file_menu.Append(ID_FILE_OPEN, '&Open File')
         self.Bind(wx.EVT_MENU, self.menu_file_open, _open)
@@ -356,6 +442,19 @@ class RegistryFileViewer(wx.Frame):
         _close = tab_menu.Append(ID_TAB_CLOSE, '&Close')
         self.Bind(wx.EVT_MENU, self.menu_tab_close, _close)
         menu_bar.Append(tab_menu, "&Tab")
+
+        # Extract 메뉴에 대한 정의
+        extract_menu = wx.Menu()
+        _extract_csv = extract_menu.Append(wx.ID_ANY, 'Extract as CSV')
+        self.Bind(wx.EVT_MENU, self.menu_extract_csv, _extract_csv)
+        _extract_pdf = extract_menu.Append(wx.ID_ANY, 'Extract as PDF')
+        self.Bind(wx.EVT_MENU, self.menu_extract_pdf, _extract_pdf)
+        _extract_md = extract_menu.Append(wx.ID_ANY, 'Extract as Markdown')
+        self.Bind(wx.EVT_MENU, self.menu_extract_md, _extract_md)
+
+        # Extract 메뉴에 하위 메뉴 추가
+        menu_bar.Append(extract_menu, "&Extract")
+        self.SetMenuBar(menu_bar)  # 전역 메뉴바로 설정
 
         # 도움말 메뉴에 대한 정의
         help_menu = wx.Menu()
@@ -376,90 +475,161 @@ class RegistryFileViewer(wx.Frame):
         p.SetSizer(sizer)
         self.Layout()
 
+    def menu_extract_csv(self, evt):
+        csv_filename = 'extracted_data.csv'
+        for i in range(self._nb.GetPageCount()):
+            page = self._nb.GetPage(i)
+            if isinstance(page, RegistryFileView):
+                data = page.extract_data()
+                CSVExporter.export(csv_filename, data)
+
+        wx.MessageBox(f"Data extracted and saved to '{csv_filename}'", "Extraction Complete")
+
+    def menu_extract_pdf(self, evt):
+        pdf_filename = 'extracted_data.pdf'
+        for i in range(self._nb.GetPageCount()):
+            page = self._nb.GetPage(i)
+            if isinstance(page, RegistryFileView):
+                data = page.extract_data()
+                PDFExporter.export(pdf_filename, data)
+
+        wx.MessageBox(f"Data extracted and saved to '{pdf_filename}'", "Extraction Complete")
+
+    def menu_extract_md(self, evt):
+        markdown_filename = 'extracted_data.md'
+        for i in range(self._nb.GetPageCount()):
+            page = self._nb.GetPage(i)
+            if isinstance(page, RegistryFileView):
+                page.export_to_markdown(markdown_filename)
+
+        wx.MessageBox(f"Data extracted and saved to '{markdown_filename}'", "Extraction Complete")
+    
+    def menu_extract(self, evt):
+        # PDF에 데이터 추출 및 저장
+        pdf_filename = 'extracted_data.pdf'
+        for i in range(self._nb.GetPageCount()):
+            page = self._nb.GetPage(i)
+            if isinstance(page, RegistryFileView):
+                data = page.extract_data()
+                PDFExporter.export(pdf_filename, data)
+
+        # Markdown에 데이터 추출 및 저장
+        markdown_filename = 'extracted_data.md'
+        for i in range(self._nb.GetPageCount()):
+            page = self._nb.GetPage(i)
+            if isinstance(page, RegistryFileView):
+                page.export_to_markdown(markdown_filename)
+
+        # CSV에 데이터 추출 및 저장
+        csv_filename = 'extracted_data.csv'
+        for i in range(self._nb.GetPageCount()):
+            page = self._nb.GetPage(i)
+            if isinstance(page, RegistryFileView):
+                data = page.extract_data()
+                CSVExporter.export(csv_filename, data)
+
+        wx.MessageBox(f"Data extracted and saved to '{pdf_filename}', '{markdown_filename}', and '{csv_filename}'","Extraction Complete")
+        
+    def export_to_pdf(self, pdf_filename='extracted_data.pdf'):
+        # PDF 생성을 위한 캔버스 생성
+        c = canvas.Canvas(pdf_filename, pagesize=letter)
+        
+        # 첫 번째 줄을 위한 시작 Y 위치 정의
+        y_position = 750  # 페이지 상단부터 시작
+        
+        # 텍스트 줄의 높이 정의
+        line_height = 14
+
+        # 노트북에서 현재 선택된 페이지를 가져옴
+        selected_page_index = self._nb.GetSelection()
+        
+        # 선택된 페이지가 RegistryFileView의 인스턴스인지 확인
+        if selected_page_index != wx.NOT_FOUND:
+            selected_page = self._nb.GetPage(selected_page_index)
+
+            if isinstance(selected_page, RegistryFileView):
+                # PDF에 포함될 데이터 추출
+                data = selected_page.extract_data()
+
+                for item in data:
+                    # 각 데이터 항목에 대한 텍스트 줄 그리기
+                    c.drawString(72, y_position, f"파일명: {item['Filename']}")
+                    y_position -= line_height
+                    c.drawString(72, y_position, f"선택된 경로: {item['Selected Path']}")
+                    y_position -= line_height
+                    c.drawString(72, y_position, f"값 이름: {item['Value Name']}")
+                    y_position -= line_height
+                    c.drawString(72, y_position, f"값 유형: {item['Value Type']}")
+                    y_position -= line_height
+                    c.drawString(72, y_position, f"값 데이터: {item['Value Data']}")
+                    y_position -= line_height * 2  # 항목 간에 추가 여백 추가
+
+                    # 페이지 하단에 도달하면 새로운 페이지 생성
+                    if y_position < 72:
+                        c.showPage()
+                        y_position = 750  # Y 위치를 다시 페이지 상단으로 설정
+
+                # PDF 파일 저장
+                c.save()
+                print(f"PDF 파일이 생성되었습니다: {pdf_filename}")
+            else:
+                wx.MessageBox("레지스트리 데이터가 있는 유효한 페이지를 선택해주세요.", "오류")
+        else:
+            wx.MessageBox("레지스트리 데이터가 있는 유효한 페이지를 선택해주세요.", "오류")
+
+        # 수정된 부분: 데이터 반환
+        return data    
+
     def _open_registry_file(self, filename):
-        # 주어진 파일에 대한 레지스트리 파일 뷰를 생성하는 함수
-        with open(filename, "rb") as f:
-            registry = Registry.Registry(f)
-            view = RegistryFileView(self._nb, registry=registry, filename=filename)
-            self._nb.AddPage(view, basename(filename))
-            return view
-
-    def menu_file_open(self, evt):
-        # "Open File" 메뉴 항목에 대한 이벤트 핸들러
-        dialog = wx.FileDialog(None, "Choose Registry File", "", "", "*", wx.FD_OPEN)
-        if dialog.ShowModal() != wx.ID_OK:
+                # 주어진 파일에 대한 레지스트리 파일 뷰를 생성하는 함수
+        try:
+            registry = Registry.Registry(filename)
+        except Registry.RegistryParseError as e:
+            wx.LogError("Error parsing registry file: %s" % e)
             return
-        filename = os.path.join(dialog.GetDirectory(), dialog.GetFilename())
-        self._open_registry_file(filename)
 
-    def menu_file_exit(self, evt):
-        # "Exit Program" 메뉴 항목에 대한 이벤트 핸들러
-        sys.exit(0)
+        registry_view = RegistryFileView(self._nb, registry, filename)
+        self._nb.AddPage(registry_view, basename(filename), select=True)
 
-    def menu_file_session_open(self, evt):
-        # "Open Session" 메뉴 항목에 대한 이벤트 핸들러
-        self._nb.DeleteAllPages()
+    def menu_file_open(self, event):
+        # "Open File" 메뉴 항목을 선택했을 때 호출되는 함수
+        wildcard = "Registry files (*.dat;*.ntuser.dat;*.log;*.hive)|*.dat;*.ntuser.dat;*.log;*.hive|" \
+                   "All files (*.*)|*.*"
+        dialog = wx.FileDialog(self, "Open Registry File", wildcard=wildcard, style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
 
-        dialog = wx.FileDialog(None, "Open Session File", "", "", "*", wx.FD_OPEN)
-        if dialog.ShowModal() != wx.ID_OK:
+        if dialog.ShowModal() == wx.ID_CANCEL:
             return
-        filename = os.path.join(dialog.GetDirectory(), dialog.GetFilename())
-        with open(filename, "rb") as f:
-            t = f.read()
 
-            lines = t.split("\n")
+        filepath = dialog.GetPath()
+        self._open_registry_file(filepath)
 
-            if len(lines) % 2 != 1:
-                self.SetStatusText("Malformed session file!")
-                return
+    def menu_file_session_save(self, event):
+        # "Save Session" 메뉴 항목을 선택했을 때 호출되는 함수
+        pass  # 여기에 세션 저장 코드를 추가하세요.
 
-            while len(lines) > 1:
-                filename = lines.pop(0)
-                path = lines.pop(0)
+    def menu_file_session_open(self, event):
+        # "Open Session" 메뉴 항목을 선택했을 때 호출되는 함수
+        pass  # 여기에 세션 열기 코드를 추가하세요.
 
-                view = self._open_registry_file(filename)
-                view.select_path(path.partition("\\")[2])
+    def menu_file_exit(self, event):
+        # "Exit Program" 메뉴 항목을 선택했을 때 호출되는 함수
+        self.Close()
 
-            self.SetStatusText("Opened session")
+    def menu_tab_close(self, event):
+        # "Close" 탭 메뉴 항목을 선택했을 때 호출되는 함수
+        idx = self._nb.GetSelection()
+        if idx != -1:
+            self._nb.DeletePage(idx)
 
-    def menu_file_session_save(self, evt):
-        # "Save Session" 메뉴 항목에 대한 이벤트 핸들러
-        dialog = wx.FileDialog(None, "Save Session File", "", "", "*", wx.FD_SAVE)
-        if dialog.ShowModal() != wx.ID_OK:
-            return
-        filename = os.path.join(dialog.GetDirectory(), dialog.GetFilename())
-        with open(filename, "wb") as f:
-            for i in range(0, self._nb.GetPageCount()):
-                page = self._nb.GetPage(i)
-                f.write(page.filename() + "\n")
-
-                path = page.selected_path()
-                if path:
-                    f.write(path)
-                f.write("\n")
-            self.SetStatusText("Saved session")
-
-    def menu_tab_close(self, evt):
-        # "Close" 탭 메뉴 항목에 대한 이벤트 핸들러
-        self._nb.RemovePage(self._nb.GetSelection())
-
-    def menu_help_about(self, evt):
-        # "About" 도움말 메뉴 항목에 대한 이벤트 핸들러
-        wx.MessageBox("regview.py, a part of `python-registry`\n\nhttp://www.williballenthin.com/registry/", "info")
-
-    # def menu_installed_applications(self, evt):
-    #     # 설치된 응용프로그램 버튼 클릭 시 실행되는 함수 
-    #     soft_reg = ".\\Registry_Folder\\SOFTWARE" # software reg path 
-    #     results = get_installed_applications(soft_reg)
-
-    #     #팝업 창 생성하여 결과 표시 
-    #     installed_apps_frame = InstalledApplicationsFrame(self, results)
-    #     installed_apps_frame.Show()
-
-    # def menu_amcache_analyzer(slef,evt):
-    #     # amcache.hve 버튼 클릭 시 실행되는 함수 
-    #     amcache_reg = ".\\Registry_folder"
-
+    def menu_help_about(self, event):
+        # "About" 메뉴 항목을 선택했을 때 호출되는 함수
+        about_info = wx.adv.AboutDialogInfo()
+        about_info.SetName("Registry Viewer")
+        about_info.SetVersion("1.0")
+        about_info.SetDescription("A simple registry file viewer")
+        about_info.SetWebSite("https://github.com/example/regviewer", "Registry Viewer GitHub Page")
+        about_info.SetLicense("MIT License")
+        wx.adv.AboutBox(about_info)
 
 # installedApplication Frame class 
 class InstalledApplicationsFrame(wx.Frame):
@@ -512,12 +682,10 @@ class AmcacheAnalyzerFrame(wx.Frame):
         sizer.Add(grid, 1, wx.EXPAND)
         panel.SetSizer(sizer)
         self.Layout()
-            
+
 if __name__ == '__main__':
     app = wx.App(False)
-
     filenames = sys.argv[1:]
-
     frame = RegistryFileViewer(None, filenames)
     frame.Show()
     app.MainLoop()
