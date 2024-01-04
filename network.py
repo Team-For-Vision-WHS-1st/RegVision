@@ -48,7 +48,6 @@ def network_settings(sys_reg, soft_reg):
 
         reg = Registry.Registry(sys_reg)
         key2 = reg.open("ControlSet00%s\\services\\Tcpip\\Parameters\\Interfaces" % control_set_check(sys_reg))
-        # Populate the subkeys containing the interfaces GUIDs
         int_list = []
         for v in key2.subkeys():
             int_list.append(v.name())
@@ -62,7 +61,7 @@ def network_settings(sys_reg, soft_reg):
                 if v == g:
                     return nics_dict['Description']
 
-        # Grab the NICs info based on the above list
+       
         for i in int_list:
             print("[-] Interface........: %s" % guid_to_name(i))
             print("[-] GUID.............: %s" % i)
@@ -72,7 +71,6 @@ def network_settings(sys_reg, soft_reg):
                 if v.name() == "Domain":
                     nics_dict['Domain'] = v.value()
                 if v.name() == "IPAddress":
-                    # Sometimes the IP would end up in a list here so just doing a little check
                     ip = v.value()
                     nics_dict['IPAddress'] = ip[0]
                 if v.name() == "DhcpIPAddress":
@@ -82,7 +80,6 @@ def network_settings(sys_reg, soft_reg):
                 if v.name() == "DhcpSubnetMask":
                     nics_dict['DhcpSubnetMask'] = v.value()
 
-            # Just to avoid key errors and continue to do because not all will have these fields
             if not 'Domain' in nics_dict:
                 nics_dict['Domain'] = "N/A"
             if not 'IPAddress' in nics_dict:
