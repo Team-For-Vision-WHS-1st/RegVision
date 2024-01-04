@@ -16,3 +16,4 @@ Window Registry Analyzer created in Python focusing on user behavior analysis
 2번과 3번을 합쳐서 전체 파일 추출.
 
 ### 관리자 권한으로 실행 할 것.
+### 4번 사용하면 됩니다.
