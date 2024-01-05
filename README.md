@@ -1,5 +1,9 @@
 RegVision (English)
 ===============
+<br>
+<br>
+
+### RegVision must be run with administrator privileges.
 
 <br>
 <br>
@@ -37,11 +41,23 @@ Extracted registry files such as `Amcache.hve`, `HARDWARE`, `SYSTEM`, `NTUSER.DA
 
 Wanted
 ------
-  - Fix
+  - Fix.
   - Bug reports.
   - Feedback.
 
 RegVision was created for your free Windows registry analysis. Although it is still lacking, I hope you can modify and use it as you wish.
+
+<br>
+<br>
+
+Error
+-------
+Currently RegVision has this error:
+
+  - Except for NTUSER.DAT, there is an error where the collected registry files are not read by RegVision.
+  - There is an error in the UserAssist part. If you obtain and read the user.NTUSER.DAT file externally, it works normally.
+  - There is an error related to MAC Address.
+  - Some registry files will not be collected unless you run it with administrator privileges.
 
 <br>
 <br>
@@ -94,6 +110,11 @@ RegVision(한국어)
 <br>
 <br>
 
+### RegVision은 반드시 관리자 권한으로 실행해야 합니다.
+
+<br>
+<br>
+
 소개
 ------------
 RegVision은 Windows 레지스트리 파일을 추출하고 분석하는 순수 Python 라이브러리입니다. 여기에는 NTUSER.DAT, userdiff 및 소프트웨어가 포함됩니다. 이 도구는 레지스트리 트리 인터페이스, 사용자 편의를 위한 도구 상자 인터페이스, 값 인터페이스로 구성됩니다. RegVision에는 여전히 많은 단점이 있습니다. 따라서 일부 오류가 남아 있습니다. 우리는 이 문제를 수정할 계획이며, 버그 보고서와 피드백은 언제나 환영합니다. 이 라이브러리의 코드와 기능을 변경하거나 업그레이드할 수 있습니다.
@@ -132,6 +153,18 @@ RegVision을 사용하기 위해서는 다음과 같은 사전 작업이 필요�
   - 피드백.
 
 RegVision은 무료 Windows 레지스트리 분석을 위해 만들어졌습니다. 아직은 부족하지만 원하시는 대로 수정해서 사용하시길 바라겠습니다.
+
+<br>
+<br>
+
+오류
+-------
+현재 RegVision에 다음 오류가 있습니다.
+
+  - NTUSER.DAT를 제외하고 수집된 레지스트리 파일을 RegVision에서 읽지 못하는 오류가 있습니다.
+  - UserAssist 부분에 오류가 있습니다. user.NTUSER.DAT 파일을 외부에서 얻어서 읽으면 정상적으로 작동합니다.
+  - MAC 주소 관련 오류가 있습니다.
+  - 일부 레지스트리 파일은 관리자 권한으로 실행하지 않으면 수집되지 않습니다.
 
 <br>
 <br>
