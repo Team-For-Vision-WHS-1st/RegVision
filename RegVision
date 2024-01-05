@@ -1052,7 +1052,7 @@ class MacAddressFrame(wx.Frame):
 class RegistryFileViewer(wx.Frame):
     def __init__(self, parent, files):
         # 레지스트리 파일을 표시하는 메인 프레임 클래스
-        super(RegistryFileViewer, self).__init__(parent, -1, "RegView", size=(800, 600))
+        super(RegistryFileViewer, self).__init__(parent, -1, "RegVision", size=(800, 600))
         self.CreateStatusBar()
 
         menu_bar = wx.MenuBar()
