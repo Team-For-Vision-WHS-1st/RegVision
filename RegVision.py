@@ -2,8 +2,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 
 #태희님 코드 추가
 from installed_application import get_installed_applications # 설치응용프로그램.py import 
