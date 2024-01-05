@@ -89,9 +89,6 @@ def network_settings(sys_reg, soft_reg):
                 results.append(nics_dict.copy())  # Copy the dictionary to avoid overwriting the same reference
 
     return results
-
-
-
             
 
 # hive와 software hive의 경로를 받아 네트워크 정보만 출력
