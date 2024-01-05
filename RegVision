@@ -18,8 +18,6 @@ from Registry import Registry
 import csv
 #영서님 코드 추가
 import subprocess
-from network import network_settings
-from keyword_search import keyword
 
 import pandas as pd #cms
 import time #cms
@@ -58,8 +56,7 @@ class CSVExporter:
     @staticmethod
     def export(filename, data):
         with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
-            fieldnames = ['Filename', 'Selected Path',
-                          'Value Name', 'Value Type', 'Value Data']
+            fieldnames = ['Filename', 'Selected Path', 'Value Name', 'Value Type', 'Value Data']
             csv_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             csv_writer.writeheader()
             csv_writer.writerows(data)
@@ -76,8 +73,7 @@ class PDFExporter:
         for item in data:
             c.drawString(72, y_position, f"Filename: {item['Filename']}")
             y_position -= line_height
-            c.drawString(72, y_position,
-                         f"Selected Path: {item['Selected Path']}")
+            c.drawString(72, y_position, f"Selected Path: {item['Selected Path']}")
             y_position -= line_height
             c.drawString(72, y_position, f"Value Name: {item['Value Name']}")
             y_position -= line_height
@@ -92,7 +88,7 @@ class PDFExporter:
 
         c.save()
         print(f"PDF file has been created: {filename}")
-
+        
         # 데이터 반환
         return data
 
@@ -102,11 +98,10 @@ class Extractor:
     def export_to_markdown(filename, data):
         with open(filename, 'w', encoding='utf-8') as md_file:
             md_file.write("# Extracted Registry Data\n\n")
-
+            
             for item in data:
                 md_file.write(f"## {item['Filename']}\n\n")
-                md_file.write(
-                    f"**Selected Path:** {item['Selected Path']}\n\n")
+                md_file.write(f"**Selected Path:** {item['Selected Path']}\n\n")
                 md_file.write(f"**Value Name:** {item['Value Name']}\n\n")
                 md_file.write(f"**Value Type:** {item['Value Type']}\n\n")
                 md_file.write(f"**Value Data:** {item['Value Data']}\n\n")
@@ -193,6 +188,16 @@ class DataPanel(wx.Panel):
         self.SetSizer(self._sizer)
         self.SetMinSize((300, 100))
 
+    def extract_data(self, value):
+        data = {
+            'Filename': self.GetParent().filename(),
+            'Selected Path': self.GetParent().selected_path(),
+            'Value Name': value.name(),
+            'Value Type': value.value_type_str(),
+            'Value Data': str(value.value())
+        }
+        return data
+
     def display_value(self, value):
         # 데이터 값을 표시하는 함수
         self._sizer.Clear()
@@ -213,8 +218,7 @@ class DataPanel(wx.Panel):
         elif data_type == Registry.RegBin or \
                 data_type == Registry.RegNone:
             view = wx.TextCtrl(self, style=wx.TE_MULTILINE)
-            font = wx.Font(8, wx.SWISS, wx.NORMAL,
-                           wx.NORMAL, False, u'Courier')
+            font = wx.Font(8, wx.SWISS, wx.NORMAL, wx.NORMAL, False, u'Courier')
             view.SetFont(font)
             view.SetValue(_format_hex(value.value()))
 
@@ -258,6 +262,9 @@ class ValuesListCtrl(wx.ListCtrl):
         # 특정 이름의 값을 가져오는 함수
         return self.values[valuename]
 
+    def get_all_values(self):
+        # 수정된 부분: 모든 값을 반환하는 함수 추가
+        return list(self.values.values())
 
 class RegistryTreeCtrl(wx.TreeCtrl):
     def __init__(self, *args, **kwargs):
@@ -456,40 +463,13 @@ class RegistryFileView(wx.Panel):
 
     def OnNetworkButtonClick(self, event):
         # 네트워크 버튼 클릭 시 호출되는 함수
-        sys_reg = "SYSTEM"
-        soft_reg = "SOFTWARE"
-
-        results = network_settings(sys_reg,soft_reg)
-
-        net_frame = NetworkFrame(self,results)
+        net_frame = NetworkFrame(self)
         net_frame.Show()
     
     def OnKeywordButtonClick(self, event):
         # 키워드검색 버튼 클릭 시 호출되는 함수
-
-        registry_hive = wx.GetTextFromUser("Enter Registry Hive (e.g., SYSTEM):", "Registry Hive", default_value="")
-        query = wx.GetTextFromUser("Enter Query:", "Query", default_value="")
-        dialog_result = wx.MessageBox("Case Insensitive Search?", "Case Insensitive", wx.YES_NO | wx.CANCEL | wx.ICON_QUESTION)
-
-        if dialog_result == wx.YES:
-            case_insensitive = True
-        elif dialog_result == wx.NO:
-            case_insensitive = False
-        else:
-    # 사용자가 취소를 누르거나 대화 상자를 닫은 경우
-            return
-
-        if registry_hive and query:
-        # 결과를 얻어옵니다.
-            results = keyword(registry_hive, query, case_insensitive)
-
-            if results:
-            # 결과가 있으면 KeywordFrame을 생성하여 결과를 표시합니다.
-                keyword_frame = KeywordFrame(self, results)
-                keyword_frame.Show()
-            else:
-                wx.MessageBox("No results found.", "Info", wx.OK | wx.ICON_INFORMATION)
-        
+        net_frame = KeywordFrame(self)
+        net_frame.Show()
 
     def OnTimelineButtonClick(self, event):
         # 타임라인검색 버튼 클릭 시 호출되는 함수
@@ -522,6 +502,24 @@ class RegistryFileView(wx.Panel):
         for value in key.values():
             self._value_list_view.add_value(value)
 
+    def export_to_markdown(self, markdown_filename='extracted_data.md'):
+        data = self.extract_data()  # 데이터 추출
+        Extractor.export_to_markdown(markdown_filename, data)
+        wx.MessageBox(f"Data extracted and saved to '{markdown_filename}'", "Extraction Complete")
+
+        data = self.extract_data()  # 데이터를 다시 추출
+        with open('extracted_data.csv', 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['Filename', 'Selected Path', 'Value Name', 'Value Type', 'Value Data']
+            csv_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            csv_writer.writeheader()
+            csv_writer.writerows(data)
+
+        with open('extracted_data.csv', 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['Filename', 'Selected Path', 'Value Name', 'Value Type', 'Value Data']
+            csv_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            csv_writer.writeheader()
+            csv_writer.writerows(data)
+
     def OnValueSelected(self, event):
         # 값 목록에서 아이템 선택 시 호출되는 함수
         item = event.GetItem()
@@ -536,6 +534,21 @@ class RegistryFileView(wx.Panel):
         if item:
             return self._tree.GetItemData(item)["key"].path()
         return False
+
+    # RegistryFileView 클래스에서 extract_data 수정
+    def extract_data(self):
+        data = []
+        for i in range(self._value_list_view.GetItemCount()):
+            value_name = self._value_list_view.GetItemText(i)
+            value = self._value_list_view.get_value(value_name)
+            data.append({
+                'Filename': self._filename,
+                'Selected Path': self.selected_path(),
+                'Value Name': value_name,
+                'Value Type': value.value_type_str(),
+                'Value Data': str(value.value())
+            })
+        return data
 
     def select_path(self, path):
         self._tree.select_path(path)
@@ -845,81 +858,100 @@ class UserAssistParser(wx.Frame): #cms code
 
 #영서님 코드 추가
 class NetworkFrame(wx.Frame):
-    def __init__(self, parent, results):
-        super(NetworkFrame, self).__init__(parent, title="TCP/IP", size=(800, 600))
-        panel = wx.Panel(self)
+    def __init__(self, *args, **kw):
+        super(NetworkFrame, self).__init__(*args, **kw, title="네트워크 정보")
 
-        # 결과를 표시할 테이블 생성
-        grid = wx.grid.Grid(panel)
-        grid.CreateGrid(len(results), len(results[0]))
+        self.panel = wx.Panel(self)
+        self.result_text = wx.TextCtrl(self.panel, style=wx.TE_MULTILINE | wx.TE_READONLY, size=(300, 150))
 
-        # 열 이름 추가
-        for col, col_name in enumerate(results[0].keys()):
-            grid.SetColLabelValue(col, str(col_name))
-
-        # 데이터 추가
-        for row, result in enumerate(results):
-            for col, value in enumerate(result.values()):
-                grid.SetCellValue(row, col, str(value))
-        
-        # 열 너비 자동 조정 
-        grid.AutoSizeColumns()
-
-        # 레이아웃 설정
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(grid, 1, wx.EXPAND)
-        panel.SetSizer(sizer)
-        self.Layout()
+        sizer.Add(self.result_text, 1, wx.EXPAND | wx.ALL, 30)
+        self.panel.SetSizerAndFit(sizer)
+        self.Bind(wx.EVT_CLOSE, self.on_close)
+
+        # 아래 두 줄을 추가하여 객체 생성 시 run_network2 함수를 호출.
+        self.run_network()
+        self.Show()
+    
+
+    def run_network(self):
+        try:
+            result = subprocess.check_output(['python', 'network.py', 'SYSTEM', 'SOFTWARE'], text=True, stderr=subprocess.STDOUT)
+            self.result_text.SetValue(result)
+        # 수정된 코드 (변경된 예외 클래스에 따라 다를 수 있음)
+        except Registry.Registry.NewExceptionClassName as e:        
+            self.result_text.SetValue(f"Error: {e.output}")
+
+    def on_close(self, event):
+        self.Destroy()
 
 #영서님 코드 추가
 class KeywordFrame(wx.Frame):
-    def __init__(self, parent, results):
-        super(KeywordFrame, self).__init__(parent, title="키워드 검색 결과", size=(800, 600))
+    def __init__(self, *args, **kw):
+        super(KeywordFrame, self).__init__(*args, **kw,title="키워드 검색")
 
-        # DataFrame 생성
-        df_paths = pd.DataFrame({"Paths": results["Paths"]})
-        df_value_names = pd.DataFrame(results["ValueNames"], columns=["Path", "ValueName"])
-        df_values = pd.DataFrame(results["Values"], columns=["Path", "ValueName"])
+        self.InitUI()
 
-        # 레이아웃 설정
-        sizer = wx.BoxSizer(wx.VERTICAL)
+    def InitUI(self):
+        pnl = wx.Panel(self)
 
-        # Paths 표시
-        text_paths = wx.StaticText(self, label="Paths")
-        sizer.Add(text_paths, 0, wx.ALL, 10)
-        grid_paths = wx.grid.Grid(self)
-        grid_paths.CreateGrid(df_paths.shape[0], 1)
-        grid_paths.SetColLabelValue(0, "Path")
-        for row in range(df_paths.shape[0]):
-            grid_paths.SetCellValue(row, 0, str(df_paths.iloc[row, 0]))
-        sizer.Add(grid_paths, 1, wx.EXPAND | wx.ALL, 10)
+        vbox = wx.BoxSizer(wx.VERTICAL)
 
-        # ValueNames 표시
-        text_value_names = wx.StaticText(self, label="Value Names")
-        sizer.Add(text_value_names, 0, wx.ALL, 10)
-        grid_value_names = wx.grid.Grid(self)
-        grid_value_names.CreateGrid(df_value_names.shape[0], df_value_names.shape[1])
-        for col, col_name in enumerate(df_value_names.columns):
-            grid_value_names.SetColLabelValue(col, col_name)
-        for row in range(df_value_names.shape[0]):
-            for col in range(df_value_names.shape[1]):
-                grid_value_names.SetCellValue(row, col, str(df_value_names.iloc[row, col]))
-        sizer.Add(grid_value_names, 1, wx.EXPAND | wx.ALL, 10)
+        hbox1 = wx.BoxSizer(wx.HORIZONTAL)
+        hbox2 = wx.BoxSizer(wx.HORIZONTAL)
 
-        # Values 표시
-        text_values = wx.StaticText(self, label="Values")
-        sizer.Add(text_values, 0, wx.ALL, 10)
-        grid_values = wx.grid.Grid(self)
-        grid_values.CreateGrid(df_values.shape[0], df_values.shape[1])
-        for col, col_name in enumerate(df_values.columns):
-            grid_values.SetColLabelValue(col, col_name)
-        for row in range(df_values.shape[0]):
-            for col in range(df_values.shape[1]):
-                grid_values.SetCellValue(row, col, str(df_values.iloc[row, col]))
-        sizer.Add(grid_values, 1, wx.EXPAND | wx.ALL, 10)
+        self.registry_label = wx.StaticText(pnl, label='Registry Hive:')
+        self.query_label = wx.StaticText(pnl, label='Keyword:')
+        self.result_text = wx.TextCtrl(pnl, style=wx.TE_MULTILINE | wx.TE_READONLY, size=(400, 200))
 
-        self.SetSizer(sizer)
+        self.registry_text = wx.TextCtrl(pnl)
+        self.query_text = wx.TextCtrl(pnl)
+        self.case_insensitive_checkbox = wx.CheckBox(pnl, label='Case Insensitive')
+
+        hbox1.Add(self.registry_label, flag=wx.RIGHT, border=8)
+        hbox1.Add(self.registry_text, proportion=1)
+        hbox1.Add(self.query_label, flag=wx.LEFT | wx.RIGHT, border=8)
+        hbox1.Add(self.query_text, proportion=1)
+        hbox1.Add(self.case_insensitive_checkbox, flag=wx.LEFT, border=8)
+
+        vbox.Add(hbox1, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=10)
+        vbox.Add((-1, 10))
+
+        hbox2.Add(self.result_text, proportion=1, flag=wx.EXPAND)
+
+        vbox.Add(hbox2, proportion=1, flag=wx.LEFT | wx.RIGHT | wx.EXPAND, border=10)
+        vbox.Add((-1, 10))
+
+        search_button = wx.Button(pnl, label='Search', size=(100, 30))
+        search_button.Bind(wx.EVT_BUTTON, self.OnSearch)
+
+        vbox.Add(search_button, flag=wx.ALIGN_RIGHT | wx.RIGHT, border=10)
+
+        pnl.SetSizer(vbox)
+
+        self.SetSize((600, 400))
         self.Centre()
+
+    def OnSearch(self, event):
+        registry_hive = self.registry_text.GetValue()
+        query = self.query_text.GetValue()
+        case_insensitive = self.case_insensitive_checkbox.GetValue()
+
+        result = self.run_search(registry_hive, query, case_insensitive)
+        self.result_text.SetValue(result)
+
+    def run_search(self, registry_hive, query, case_insensitive):
+        command = ['python', 'keyword_search.py', registry_hive, query]
+        if case_insensitive:
+            command.append('-i')
+
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        output, error = process.communicate()
+
+        if error:
+            return f"Error: {error}"
+
+        return output
     
 #영서님 코드 추가    
 class TimelineFrame(wx.Frame):
@@ -1004,8 +1036,7 @@ class MacAddressFrame(wx.Frame):
 class RegistryFileViewer(wx.Frame):
     def __init__(self, parent, files):
         # 레지스트리 파일을 표시하는 메인 프레임 클래스
-        super(RegistryFileViewer, self).__init__(
-            parent, -1, "RegVision", size=(800, 600))
+        super(RegistryFileViewer, self).__init__(parent, -1, "RegView", size=(800, 600))
         self.CreateStatusBar()
 
         menu_bar = wx.MenuBar()
@@ -1183,8 +1214,7 @@ class RegistryFileViewer(wx.Frame):
                 data = page.extract_data()
                 CSVExporter.export(csv_filename, data)
 
-        wx.MessageBox(
-            f"Data extracted and saved to '{csv_filename}'", "Extraction Complete")
+        wx.MessageBox(f"Data extracted and saved to '{csv_filename}'", "Extraction Complete")
 
     def menu_extract_pdf(self, evt):
         pdf_filename = 'extracted_data.pdf'
@@ -1194,8 +1224,7 @@ class RegistryFileViewer(wx.Frame):
                 data = page.extract_data()
                 PDFExporter.export(pdf_filename, data)
 
-        wx.MessageBox(
-            f"Data extracted and saved to '{pdf_filename}'", "Extraction Complete")
+        wx.MessageBox(f"Data extracted and saved to '{pdf_filename}'", "Extraction Complete")
 
     def menu_extract_md(self, evt):
         markdown_filename = 'extracted_data.md'
@@ -1204,17 +1233,12 @@ class RegistryFileViewer(wx.Frame):
             if isinstance(page, RegistryFileView):
                 page.export_to_markdown(markdown_filename)
 
-        wx.MessageBox(
-            f"Data extracted and saved to '{markdown_filename}'", "Extraction Complete")
+        wx.MessageBox(f"Data extracted and saved to '{markdown_filename}'", "Extraction Complete")
 
     def menu_extract(self, evt):
         # PDF에 데이터 추출 및 저장
-        pdf_filename = 'extracted_data.pdf'
-        for i in range(self._nb.GetPageCount()):
-            page = self._nb.GetPage(i)
-            if isinstance(page, RegistryFileView):
-                data = page.extract_data()
-                PDFExporter.export(pdf_filename, data)
+        data = self.export_to_pdf()
+        wx.MessageBox("Data extracted and saved to 'extracted_data.pdf'", "Extraction Complete")
 
         # Markdown에 데이터 추출 및 저장
         markdown_filename = 'extracted_data.md'
@@ -1224,29 +1248,35 @@ class RegistryFileViewer(wx.Frame):
                 page.export_to_markdown(markdown_filename)
 
         # CSV에 데이터 추출 및 저장
-        csv_filename = 'extracted_data.csv'
-        for i in range(self._nb.GetPageCount()):
-            page = self._nb.GetPage(i)
-            if isinstance(page, RegistryFileView):
-                data = page.extract_data()
-                CSVExporter.export(csv_filename, data)
+        with open('extracted_data.csv', 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['Filename', 'Selected Path', 'Value Name', 'Value Type', 'Value Data']
+            csv_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            csv_writer.writeheader()
 
-        wx.MessageBox(
-            f"Data extracted and saved to '{pdf_filename}', '{markdown_filename}', and '{csv_filename}'", "Extraction Complete")
+            for item in data:
+                csv_writer.writerow({
+                    'Filename': item['Filename'],
+                    'Selected Path': item['Selected Path'],
+                    'Value Name': item['Value Name'],
+                    'Value Type': item['Value Type'],
+                    'Value Data': item['Value Data']
+                })
+
+        wx.MessageBox(f"Data extracted and saved to 'extracted_data.csv', '{markdown_filename}', and 'extracted_data.pdf'", "Extraction Complete")
 
     def export_to_pdf(self, pdf_filename='extracted_data.pdf'):
         # PDF 생성을 위한 캔버스 생성
         c = canvas.Canvas(pdf_filename, pagesize=letter)
-
+        
         # 첫 번째 줄을 위한 시작 Y 위치 정의
         y_position = 750  # 페이지 상단부터 시작
-
+        
         # 텍스트 줄의 높이 정의
         line_height = 14
 
         # 노트북에서 현재 선택된 페이지를 가져옴
         selected_page_index = self._nb.GetSelection()
-
+        
         # 선택된 페이지가 RegistryFileView의 인스턴스인지 확인
         if selected_page_index != wx.NOT_FOUND:
             selected_page = self._nb.GetPage(selected_page_index)
@@ -1259,15 +1289,13 @@ class RegistryFileViewer(wx.Frame):
                     # 각 데이터 항목에 대한 텍스트 줄 그리기
                     c.drawString(72, y_position, f"파일명: {item['Filename']}")
                     y_position -= line_height
-                    c.drawString(72, y_position,
-                                 f"선택된 경로: {item['Selected Path']}")
+                    c.drawString(72, y_position, f"선택된 경로: {item['Selected Path']}")
                     y_position -= line_height
                     c.drawString(72, y_position, f"값 이름: {item['Value Name']}")
                     y_position -= line_height
                     c.drawString(72, y_position, f"값 유형: {item['Value Type']}")
                     y_position -= line_height
-                    c.drawString(72, y_position,
-                                 f"값 데이터: {item['Value Data']}")
+                    c.drawString(72, y_position, f"값 데이터: {item['Value Data']}")
                     y_position -= line_height * 2  # 항목 간에 추가 여백 추가
 
                     # 페이지 하단에 도달하면 새로운 페이지 생성
@@ -1301,8 +1329,7 @@ class RegistryFileViewer(wx.Frame):
         # "Open File" 메뉴 항목을 선택했을 때 호출되는 함수
         wildcard = "Registry files (*.dat;*.ntuser.dat;*.log;*.hive)|*.dat;*.ntuser.dat;*.log;*.hive|" \
                    "All files (*.*)|*.*"
-        dialog = wx.FileDialog(self, "Open Registry File",
-                               wildcard=wildcard, style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
+        dialog = wx.FileDialog(self, "Open Registry File", wildcard=wildcard, style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
 
         if dialog.ShowModal() == wx.ID_CANCEL:
             return
@@ -1334,8 +1361,7 @@ class RegistryFileViewer(wx.Frame):
         about_info.SetName("Registry Viewer")
         about_info.SetVersion("1.0")
         about_info.SetDescription("A simple registry file viewer")
-        about_info.SetWebSite(
-            "https://github.com/example/regviewer", "Registry Viewer GitHub Page")
+        about_info.SetWebSite("https://github.com/example/regviewer", "Registry Viewer GitHub Page")
         about_info.SetLicense("MIT License")
         wx.adv.AboutBox(about_info)
 
