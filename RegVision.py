@@ -6,7 +6,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 #태희님 코드 추가
-from installed_applications import get_installed_applications # 설치응용프로그램.py import 
+from installed_application import get_installed_applications # 설치응용프로그램.py import 
 from amcache_analyzer import analyze_amcache #amcache 모듈 import
 
 #태희님 코드 추가
