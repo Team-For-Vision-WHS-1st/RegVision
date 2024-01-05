@@ -25,6 +25,7 @@ import wx.grid #cms
 import threading #cms
 import codecs #cms
 import struct #cms
+import getpass
 from datetime import datetime, timedelta#cms
 from Registry import Registry#cms
 from known_folders import folder_guids#cms
@@ -453,7 +454,8 @@ class RegistryFileView(wx.Panel):
         app.MainLoop()
 
     def UserAssist_button_click(self, event): #cms code
-        ntuser_path = 'NTUSER.DAT'  # Create a Path object
+        username = getpass.getuser()
+        ntuser_path = username + '.NTUSER.DAT'  # Create a Path object
 
         app = wx.App(False)
         frame = UserAssistParser(ntuser_path, None, title='User Assist Information', size=(800, 600))
