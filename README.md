@@ -15,5 +15,8 @@ Window Registry Analyzer created in Python focusing on user behavior analysis
 ## Collect4.py
 2번과 3번을 합쳐서 전체 파일 추출.
 
+## Regview_collect 2.py
+main GUI에 Collect 기능 첨부 정상작동 됨.
+
 ### 관리자 권한으로 실행 할 것.
-### 4번 사용하면 됩니다.
+
